@@ -1,0 +1,463 @@
+---
+
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname if '.' in inventory_hostname else inventory_hostname_short }}"
+
+- name: Ensure localhost is clean
+  ansible.builtin.lineinfile:
+    dest: /etc/hosts
+    regexp: '^127\.0\.0\.1'
+    line: "127.0.0.1 localhost"
+
+- name: Remove 127.0.1.1 host alias to avoid local resolution overrides
+  ansible.builtin.lineinfile:
+    dest: /etc/hosts
+    regexp: '^127\.0\.1\.1\s+'
+    state: absent
+
+- name: Map hostname to actual static IP
+  ansible.builtin.lineinfile:
+    dest: /etc/hosts
+    line: "{{ ansible_default_ipv4.address }} {{ inventory_hostname }} {{ inventory_hostname_short }}"
+    regexp: "^{{ ansible_default_ipv4.address | replace('.', '\\.') }}"
+    state: present
+  when: ansible_default_ipv4.address is defined
+
+- name: Refresh facts so ansible_fqdn updates
+  ansible.builtin.setup:
+
+- name: "Raspberry Pi radios | determine if changes requested"
+  ansible.builtin.set_fact:
+    provision_ubuntu_2404_rpi_radios_requested: "{{ (provision_ubuntu_2404_rpi_disable_wifi | bool) or (provision_ubuntu_2404_rpi_disable_bluetooth | bool) }}"
+  changed_when: false
+  tags: configure-system
+
+- name: "Raspberry Pi radios | check model (device tree)"
+  ansible.builtin.stat:
+    path: /sys/firmware/devicetree/base/model
+  register: provision_ubuntu_2404_rpi_dt_model_stat
+  when: provision_ubuntu_2404_rpi_radios_requested | bool
+  tags: configure-system
+
+- name: "Raspberry Pi radios | read model (device tree)"
+  ansible.builtin.slurp:
+    path: /sys/firmware/devicetree/base/model
+  register: provision_ubuntu_2404_rpi_dt_model
+  when:
+    - provision_ubuntu_2404_rpi_radios_requested | bool
+    - provision_ubuntu_2404_rpi_dt_model_stat.stat.exists
+  tags: configure-system
+
+- name: "Raspberry Pi radios | check model (legacy device tree)"
+  ansible.builtin.stat:
+    path: /proc/device-tree/model
+  register: provision_ubuntu_2404_rpi_dt_legacy_stat
+  when:
+    - provision_ubuntu_2404_rpi_radios_requested | bool
+    - not provision_ubuntu_2404_rpi_dt_model_stat.stat.exists
+  tags: configure-system
+
+- name: "Raspberry Pi radios | read model (legacy device tree)"
+  ansible.builtin.slurp:
+    path: /proc/device-tree/model
+  register: provision_ubuntu_2404_rpi_dt_legacy_model
+  when:
+    - provision_ubuntu_2404_rpi_radios_requested | bool
+    - provision_ubuntu_2404_rpi_dt_legacy_stat.stat.exists
+  tags: configure-system
+
+- name: "Raspberry Pi radios | read cpuinfo (fallback)"
+  ansible.builtin.slurp:
+    path: /proc/cpuinfo
+  register: provision_ubuntu_2404_rpi_cpuinfo
+  when: provision_ubuntu_2404_rpi_radios_requested | bool
+  tags: configure-system
+
+- name: "Raspberry Pi radios | set model facts"
+  ansible.builtin.set_fact:
+    provision_ubuntu_2404_rpi_model: >-
+      {{
+        (provision_ubuntu_2404_rpi_dt_model.content | b64decode | trim)
+        if (provision_ubuntu_2404_rpi_dt_model is defined and provision_ubuntu_2404_rpi_dt_model.content is defined)
+        else ((provision_ubuntu_2404_rpi_dt_legacy_model.content | b64decode | trim)
+          if (provision_ubuntu_2404_rpi_dt_legacy_model is defined and provision_ubuntu_2404_rpi_dt_legacy_model.content is defined)
+          else ((provision_ubuntu_2404_rpi_cpuinfo.content | b64decode).splitlines()
+            | select('match', '^Model\\s*:')
+            | list
+            | first
+            | default('')
+            | regex_replace('^Model\\s*:\\s*', '')
+          )
+        )
+      }}
+    provision_ubuntu_2404_rpi_is_pi: "{{ 'Raspberry Pi' in (provision_ubuntu_2404_rpi_model | default('')) }}"
+  changed_when: false
+  when: provision_ubuntu_2404_rpi_radios_requested | bool
+  tags: configure-system
+
+- name: "Raspberry Pi radios | determine generation"
+  ansible.builtin.set_fact:
+    provision_ubuntu_2404_rpi_generation: >-
+      {{
+        '5' if ('Raspberry Pi 5' in (provision_ubuntu_2404_rpi_model | default('')))
+        else '4' if ('Raspberry Pi 4' in (provision_ubuntu_2404_rpi_model | default('')))
+        else ''
+      }}
+  changed_when: false
+  when:
+    - provision_ubuntu_2404_rpi_radios_requested | bool
+    - provision_ubuntu_2404_rpi_is_pi | bool
+  tags: configure-system
+
+# Fail fast to avoid applying incorrect overlays on unknown Pi models.
+- name: "Raspberry Pi radios | fail on unknown generation"
+  ansible.builtin.fail:
+    msg: "Unable to determine Raspberry Pi generation from model '{{ provision_ubuntu_2404_rpi_model }}'."
+  when:
+    - provision_ubuntu_2404_rpi_radios_requested | bool
+    - provision_ubuntu_2404_rpi_is_pi | bool
+    - provision_ubuntu_2404_rpi_generation == ""
+  tags: configure-system
+
+- name: "Raspberry Pi radios | select overlays"
+  ansible.builtin.set_fact:
+    provision_ubuntu_2404_rpi_wifi_overlay: "{{ 'dtoverlay=disable-wifi' if provision_ubuntu_2404_rpi_generation == '4' else 'dtoverlay=disable-wifi-pi5' }}"
+    provision_ubuntu_2404_rpi_bt_overlay: "{{ 'dtoverlay=disable-bt' if provision_ubuntu_2404_rpi_generation == '4' else 'dtoverlay=disable-bt-pi5' }}"
+    provision_ubuntu_2404_rpi_overlay_lines: >-
+      {{
+        ([] +
+          ([provision_ubuntu_2404_rpi_wifi_overlay] if provision_ubuntu_2404_rpi_disable_wifi | bool else []) +
+          ([provision_ubuntu_2404_rpi_bt_overlay] if provision_ubuntu_2404_rpi_disable_bluetooth | bool else [])
+        )
+      }}
+  changed_when: false
+  when:
+    - provision_ubuntu_2404_rpi_radios_requested | bool
+    - provision_ubuntu_2404_rpi_is_pi | bool
+    - provision_ubuntu_2404_rpi_generation != ""
+  tags: configure-system
+
+- name: "Raspberry Pi radios | check firmware config"
+  ansible.builtin.stat:
+    path: "{{ provision_ubuntu_2404_rpi_config_txt_path }}"
+  register: provision_ubuntu_2404_rpi_config_stat
+  when:
+    - provision_ubuntu_2404_rpi_radios_requested | bool
+    - provision_ubuntu_2404_rpi_is_pi | bool
+  tags: configure-system
+
+- name: "Raspberry Pi radios | fail if config missing"
+  ansible.builtin.fail:
+    msg: "Raspberry Pi firmware config not found at {{ provision_ubuntu_2404_rpi_config_txt_path }}."
+  when:
+    - provision_ubuntu_2404_rpi_radios_requested | bool
+    - provision_ubuntu_2404_rpi_is_pi | bool
+    - not provision_ubuntu_2404_rpi_config_stat.stat.exists
+  tags: configure-system
+
+- name: "Raspberry Pi radios | backup firmware config"
+  ansible.builtin.copy:
+    src: "{{ provision_ubuntu_2404_rpi_config_txt_path }}"
+    dest: "{{ provision_ubuntu_2404_rpi_config_txt_path }}.bak"
+    remote_src: true
+    force: false
+    mode: "0644"
+  when:
+    - provision_ubuntu_2404_rpi_radios_requested | bool
+    - provision_ubuntu_2404_rpi_is_pi | bool
+    - provision_ubuntu_2404_rpi_config_stat.stat.exists
+  tags: configure-system
+
+- name: "Raspberry Pi radios | ensure overlays present"
+  ansible.builtin.lineinfile:
+    path: "{{ provision_ubuntu_2404_rpi_config_txt_path }}"
+    line: "{{ item }}"
+    regexp: "^#?{{ item | regex_escape() }}\\s*$"
+    state: present
+    insertafter: EOF
+    create: false
+    backup: true
+  loop: "{{ provision_ubuntu_2404_rpi_overlay_lines }}"
+  when:
+    - provision_ubuntu_2404_rpi_radios_requested | bool
+    - provision_ubuntu_2404_rpi_is_pi | bool
+    - provision_ubuntu_2404_rpi_config_stat.stat.exists
+    - provision_ubuntu_2404_rpi_overlay_lines | length > 0
+  tags: configure-system
+
+- name: "Raspberry Pi radios | optionally disable bluetooth.service"
+  ansible.builtin.systemd:
+    name: bluetooth.service
+    enabled: false
+    state: stopped
+    masked: true
+  when:
+    - provision_ubuntu_2404_rpi_radios_requested | bool
+    - provision_ubuntu_2404_rpi_is_pi | bool
+    - provision_ubuntu_2404_rpi_disable_bluetooth | bool
+    - provision_ubuntu_2404_rpi_disable_bt_service | bool
+  tags: configure-system
+
+- name: "Raspberry Pi radios | remove legacy blacklist"
+  ansible.builtin.file:
+    path: /etc/modprobe.d/raspi-blacklist.conf
+    state: absent
+  when:
+    - provision_ubuntu_2404_rpi_radios_requested | bool
+    - provision_ubuntu_2404_rpi_is_pi | bool
+  tags: configure-system
+
+- name: "Raspberry Pi radios | debug detection"
+  ansible.builtin.debug:
+    msg:
+      model: "{{ provision_ubuntu_2404_rpi_model | default('') }}"
+      generation: "{{ provision_ubuntu_2404_rpi_generation | default('') }}"
+      overlays: "{{ provision_ubuntu_2404_rpi_overlay_lines | default([]) }}"
+      config_path: "{{ provision_ubuntu_2404_rpi_config_txt_path }}"
+  when:
+    - provision_ubuntu_2404_rpi_radios_requested | bool
+    - provision_ubuntu_2404_rpi_is_pi | bool
+    - provision_ubuntu_2404_rpi_debug | bool or (ansible_verbosity | int) >= 2
+  tags: configure-system
+
+- name: Setup passwordless sudo for sudo group
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: '^%sudo'
+    line: '%sudo ALL=(ALL) NOPASSWD: ALL'
+    validate: 'visudo -cf %s'
+  tags: configure-system
+
+- name: Disable MOTD components
+  ansible.builtin.file:
+    path: /etc/update-motd.d/{{ item }}
+    mode: u-x,g-x,o-x
+  loop: ['10-help-text', '50-motd-news']
+  tags: configure-system
+
+- name: Update and upgrade apt packages
+  ansible.builtin.apt:
+    upgrade: true
+    update_cache: true
+    cache_valid_time: 86400
+  tags: update-system
+
+- name: Install additional applications
+  ansible.builtin.apt:
+    name: "{{ provision_ubuntu_2404_apps_to_install }}"
+    state: present
+    force_apt_get: true
+  tags: update-system
+
+- name: "GPU drivers"
+  ansible.builtin.import_tasks: gpu_drivers.yml
+  tags: [update-system, nvidia, drivers]
+
+- name: Install and enable QEMU guest tools on VM
+  when: ansible_system_vendor == "QEMU"
+  notify: Reboot Ubuntu server
+  tags: update-system
+  block:
+    - name: Install QEMU guest tools
+      ansible.builtin.apt:
+        name: qemu-guest-agent
+        state: present
+
+    - name: Enable and start QEMU guest agent service
+      ansible.builtin.systemd:
+        name: qemu-guest-agent
+        enabled: true
+        state: started
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ provision_ubuntu_2404_site_timezone }}"
+  notify: Restart chrony
+  tags: configure-ntp
+
+- name: Configure chrony
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: /etc/chrony/chrony.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart chrony
+  tags: configure-ntp
+
+- name: Disable systemd-timesyncd (avoid double NTP daemons)
+  ansible.builtin.systemd:
+    name: systemd-timesyncd
+    enabled: false
+    state: stopped
+  failed_when: false
+  tags: configure-ntp
+
+- name: Ensure chrony is enabled and running
+  ansible.builtin.systemd:
+    name: chrony
+    enabled: true
+    state: started
+  tags: configure-ntp
+
+- name: Deploy periodic-upgrades config
+  ansible.builtin.template:
+    src: 20auto-upgrades.j2
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: '0644'
+  tags: harden-system
+
+- name: Deploy unattended-upgrades config
+  ansible.builtin.template:
+    src: 50unattended-upgrades.j2
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    owner: root
+    group: root
+    mode: '0644'
+  tags: harden-system
+
+- name: "FAIL2BAN | ensure service enabled and running"
+  ansible.builtin.service:
+    name: fail2ban
+    enabled: true
+    state: started
+  tags: harden-system
+
+- name: "SSH | host key check"
+  ansible.builtin.stat:
+    path: /etc/ssh/ssh_host_ed25519_key
+  register: provision_ubuntu_2404_ssh_hostkey_ed25519
+  tags: harden-system
+
+- name: "SSH | generate default host keys (if missing)"
+  ansible.builtin.command: ssh-keygen -A
+  when: not provision_ubuntu_2404_ssh_hostkey_ed25519.stat.exists
+  changed_when: true
+  notify: Restart sshd
+  tags: harden-system
+
+- name: "HARDEN | configure sshd"
+  ansible.builtin.template:
+    src: sshd_hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/99-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart sshd
+  tags: harden-system
+
+- name: "SYSCTL | render hardened drop-in"
+  ansible.builtin.template:
+    src: sysctl-99-hardening.conf.j2
+    dest: /etc/sysctl.d/99-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: "Reload kernel params"
+  tags: harden-system
+
+- name: "FAIL2BAN | configure jails"
+  ansible.builtin.template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart fail2ban
+  tags: harden-system
+
+- name: Configure firewall
+  when:
+    - ansible_distribution == "Ubuntu"
+    - ansible_virtualization_type != 'lxc'
+  tags: configure-firewall
+  block:
+    - name: Optionally reset UFW (flush rules)
+      community.general.ufw:
+        state: reset
+      when: provision_ubuntu_2404_ufw_reset | bool
+      notify: Reload UFW
+
+    - name: Configure IPv6 support in /etc/default/ufw
+      ansible.builtin.lineinfile:
+        path: /etc/default/ufw
+        regexp: '^IPV6='
+        line: "IPV6={{ (provision_ubuntu_2404_ufw_ipv6 | bool) | ternary('yes', 'no') }}"
+        create: true
+        mode: "0644"
+      notify: Reload UFW
+
+    - name: Optionally manage DEFAULT_FORWARD_POLICY
+      ansible.builtin.lineinfile:
+        path: /etc/default/ufw
+        regexp: '^DEFAULT_FORWARD_POLICY='
+        line: >-
+          DEFAULT_FORWARD_POLICY="{{ provision_ubuntu_2404_ufw_default_forward_policy | upper }}"
+        create: true
+        mode: "0644"
+      when: provision_ubuntu_2404_ufw_manage_forward_policy | bool
+      notify: Reload UFW
+
+    - name: "UFW | install application profiles"
+      ansible.builtin.import_role:
+        name: ufw_profiles
+      vars:
+        ufw_profiles_catalog: "{{ ufw_application_catalog | default([]) }}"
+        ufw_profiles_allow_applications: []
+      when: (ufw_application_catalog | default([])) | length > 0
+
+    - name: Validate UFW default policies
+      ansible.builtin.assert:
+        that:
+          - provision_ubuntu_2404_ufw_default_incoming in ['allow', 'deny', 'reject']
+          - provision_ubuntu_2404_ufw_default_outgoing in ['allow', 'deny', 'reject']
+        fail_msg: >-
+          UFW default policies must be one of allow, deny, reject.
+          incoming={{ provision_ubuntu_2404_ufw_default_incoming }},
+          outgoing={{ provision_ubuntu_2404_ufw_default_outgoing }}.
+      when: provision_ubuntu_2404_ufw_enable | bool
+
+    # Allow SSH before applying default deny to avoid lockouts.
+    - name: Allow SSH rule(s)
+      community.general.ufw:
+        rule: allow
+        name: OpenSSH
+      when: provision_ubuntu_2404_ufw_enable | bool
+      notify: Reload UFW
+
+    - name: Set default incoming policy # noqa: args[module]
+      community.general.ufw:
+        state: enabled
+        direction: incoming
+        policy: "{{ provision_ubuntu_2404_ufw_default_incoming }}"
+      when: provision_ubuntu_2404_ufw_enable | bool
+      notify: Reload UFW
+
+    - name: Set default outgoing policy # noqa: args[module]
+      community.general.ufw:
+        state: enabled
+        direction: outgoing
+        policy: "{{ provision_ubuntu_2404_ufw_default_outgoing }}"
+      when: provision_ubuntu_2404_ufw_enable | bool
+      notify: Reload UFW
+
+    - name: Set UFW logging level
+      community.general.ufw:
+        logging: "{{ provision_ubuntu_2404_ufw_logging }}"
+      notify: Reload UFW
+
+- name: Reboot required check
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: provision_ubuntu_2404_reboot_required
+
+- name: Signal reboot if file exists
+  ansible.builtin.set_fact:
+    provision_ubuntu_2404_reboot_needed: true
+  when: provision_ubuntu_2404_reboot_required.stat.exists
+  changed_when: true
+  notify: Reboot system

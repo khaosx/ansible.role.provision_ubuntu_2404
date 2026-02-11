@@ -1,0 +1,25 @@
+# {{ ansible_managed | comment }}
+#
+
+// Automatically upgrade packages from these (origin:archive) pairs
+Unattended-Upgrade::Allowed-Origins {
+        "${distro_id}:${distro_codename}-security";
+        "${distro_id}:${distro_codename}-updates";
+};
+
+// List of packages to not update
+Unattended-Upgrade::Package-Blacklist {
+//      "vim";
+};
+
+{% if provision_ubuntu_2404_unattended_mail %}
+Unattended-Upgrade::Mail "{{ provision_ubuntu_2404_unattended_mail }}";
+Unattended-Upgrade::MailOnlyOnError "{{ provision_ubuntu_2404_unattended_mail_only_on_error | ternary('true','false') }}";
+{% endif %}
+
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+Unattended-Upgrade::MinimalSteps "{{ provision_ubuntu_2404_unattended_minimal_steps | ternary('true','false') }}";
+
+Unattended-Upgrade::Automatic-Reboot "{{ provision_ubuntu_2404_unattended_reboot | ternary('true','false') }}";
+Unattended-Upgrade::Automatic-Reboot-Time "{{ provision_ubuntu_2404_unattended_reboot_time }}";

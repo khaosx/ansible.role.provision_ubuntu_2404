@@ -1,0 +1,10 @@
+# {{ ansible_managed | comment }}
+#
+
+# Generated from provision_ubuntu_2404_sysctl_params dict.
+
+{% for kv in (provision_ubuntu_2404_sysctl_params | dict2items | sort(attribute='key')) -%}
+{{ kv.key }} = {{ kv.value }}
+{% endfor %}
+
+# {{ ansible_managed | comment }}

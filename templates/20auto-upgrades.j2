@@ -1,0 +1,19 @@
+# {{ ansible_managed | comment }}
+#
+
+// Check for upgrades every day
+APT::Periodic::Update-Package-Lists "{{ provision_ubuntu_2404_apt_periodic_update }}";
+
+// Download upgradable packages every day
+APT::Periodic::Download-Upgradeable-Packages "{{ provision_ubuntu_2404_apt_periodic_download }}";
+
+// Run a package upgrade every day
+APT::Periodic::Unattended-Upgrade "{{ provision_ubuntu_2404_apt_periodic_upgrade }}";
+
+// Clean the local archive every week
+APT::Periodic::AutocleanInterval "{{ provision_ubuntu_2404_apt_periodic_autoclean }}";
+
+// Jitter to avoid herd effects
+APT::Periodic::RandomSleep "{{ provision_ubuntu_2404_apt_periodic_random_sleep }}";
+
+# {{ ansible_managed | comment }}

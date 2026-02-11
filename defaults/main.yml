@@ -1,0 +1,79 @@
+---
+# defaults/main.yml — provision_ubuntu_2404
+
+# General
+provision_ubuntu_2404_reboot_timeout: 600
+provision_ubuntu_2404_site_timezone: "UTC"
+provision_ubuntu_2404_apps_to_install:
+  - ufw
+  - fail2ban
+  - unattended-upgrades
+  - curl
+  - wget
+  - git
+  - chrony
+  - lshw
+  - pciutils
+
+# Unattended upgrades (50unattended-upgrades.j2)
+provision_ubuntu_2404_unattended_mail: ""                # e.g., "root"
+provision_ubuntu_2404_unattended_mail_only_on_error: true
+provision_ubuntu_2404_unattended_minimal_steps: true
+provision_ubuntu_2404_unattended_reboot: true
+provision_ubuntu_2404_unattended_reboot_time: "04:00"
+
+# Periodic APT (20auto-upgrades.j2)
+provision_ubuntu_2404_apt_periodic_update: "1"           # APT::Periodic::Update-Package-Lists
+provision_ubuntu_2404_apt_periodic_download: "1"         # APT::Periodic::Download-Upgradeable-Packages
+provision_ubuntu_2404_apt_periodic_upgrade: "1"          # APT::Periodic::Unattended-Upgrade
+provision_ubuntu_2404_apt_periodic_autoclean: "7"        # APT::Periodic::AutocleanInterval
+provision_ubuntu_2404_apt_periodic_random_sleep: "1800"  # APT::Periodic::RandomSleep
+
+# SSH hardening (sshd_hardening.conf.j2)
+provision_ubuntu_2404_ssh_allow_users: []                # e.g., ["Gaston"]
+
+# Sysctl (sysctl-99-hardening.conf.j2)
+# Provide a dict of key: value pairs; rendered verbatim.
+provision_ubuntu_2404_sysctl_params: {}
+
+# Fail2Ban (jail.local.j2)
+provision_ubuntu_2404_fail2ban_jail:
+  sshd:
+    enabled: true
+    port: ssh
+    filter: sshd
+    logpath: /var/log/auth.log
+    maxretry: 5
+
+# UFW baseline (configure_firewall.yml)
+provision_ubuntu_2404_ufw_enable: true
+provision_ubuntu_2404_ufw_reset: false
+provision_ubuntu_2404_ufw_ipv6: false
+provision_ubuntu_2404_ufw_logging: "on"                  # off|on|low|medium|high|full
+
+# Default policies and optional forward policy management
+provision_ubuntu_2404_ufw_default_incoming: deny
+provision_ubuntu_2404_ufw_default_outgoing: allow
+provision_ubuntu_2404_ufw_manage_forward_policy: false
+provision_ubuntu_2404_ufw_default_forward_policy: "DROP" # ACCEPT|DROP
+
+provision_ubuntu_2404_chrony_ntp_servers:
+  - time.apple.com
+  - time.cloudflare.com
+  - 0.pool.ntp.org
+
+provision_ubuntu_2404_chrony_allow_network: []
+# Example:
+# provision_ubuntu_2404_chrony_allow_network:
+#   - "192.168.10.0/24"
+
+provision_ubuntu_2404_chrony_makestep_threshold: 1.0
+provision_ubuntu_2404_chrony_makestep_limit: 3
+
+# Raspberry Pi radio control (Device Tree overlays)
+provision_ubuntu_2404_rpi_disable_radios: true
+provision_ubuntu_2404_rpi_disable_wifi: "{{ provision_ubuntu_2404_rpi_disable_radios | bool }}"
+provision_ubuntu_2404_rpi_disable_bluetooth: "{{ provision_ubuntu_2404_rpi_disable_radios | bool }}"
+provision_ubuntu_2404_rpi_disable_bt_service: false
+provision_ubuntu_2404_rpi_config_txt_path: "/boot/firmware/config.txt"
+provision_ubuntu_2404_rpi_debug: false

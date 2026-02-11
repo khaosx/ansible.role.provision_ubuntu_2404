@@ -1,0 +1,152 @@
+---
+
+# Best-effort GPU detection; keep checks non-fatal for headless hosts.
+- name: "GPU check"
+  ansible.builtin.command:
+    cmd: "lshw -short -class display"
+  register: provision_ubuntu_2404_gpu_list
+  ignore_errors: true
+  changed_when: false
+  failed_when: false
+  tags: update-system
+
+- name: "GPU check | detect NVIDIA via lspci"
+  ansible.builtin.command:
+    cmd: "lspci -nn"
+  register: provision_ubuntu_2404_nvidia_pci
+  ignore_errors: true
+  changed_when: false
+  failed_when: false
+  tags: [update-system, nvidia, drivers]
+
+- name: "GPU check | set NVIDIA GPU presence fact"
+  ansible.builtin.set_fact:
+    provision_ubuntu_2404_has_nvidia_gpu: >-
+      {{ (provision_ubuntu_2404_nvidia_pci.stdout | default('') | regex_search('NVIDIA|10de', ignorecase=True)) is not none }}
+  changed_when: false
+  tags: [update-system, nvidia, drivers]
+
+- name: "GPU check | set Intel GPU presence fact"
+  ansible.builtin.set_fact:
+    provision_ubuntu_2404_has_intel_gpu: >-
+      {{
+        (provision_ubuntu_2404_nvidia_pci.stdout | default('') | regex_search('^(?=.*(VGA|3D))(.*Intel|.*8086)', multiline=True)) is not none
+      }}
+  changed_when: false
+  tags: [update-system, drivers]
+
+- name: "GPU check | verify nvidia-smi binary"
+  ansible.builtin.stat:
+    path: /usr/bin/nvidia-smi
+  register: provision_ubuntu_2404_nvidia_smi_stat
+  changed_when: false
+  tags: [update-system, nvidia, drivers]
+
+- name: "GPU check | check loaded NVIDIA kernel modules"
+  ansible.builtin.command:
+    cmd: "lsmod"
+  register: provision_ubuntu_2404_nvidia_lsmod
+  changed_when: false
+  failed_when: false
+  tags: [update-system, nvidia, drivers]
+
+- name: "GPU check | check NVIDIA driver packages"
+  ansible.builtin.command:
+    cmd: "dpkg -l"
+  register: provision_ubuntu_2404_nvidia_dpkg
+  changed_when: false
+  failed_when: false
+  tags: [update-system, nvidia, drivers]
+
+- name: "GPU check | set NVIDIA driver presence fact"
+  ansible.builtin.set_fact:
+    provision_ubuntu_2404_nvidia_drivers_present: >-
+      {{
+        provision_ubuntu_2404_nvidia_smi_stat.stat.exists
+        or (provision_ubuntu_2404_nvidia_lsmod.stdout_lines | default([]) | select('match', '^nvidia') | list | length > 0)
+        or ((provision_ubuntu_2404_nvidia_dpkg.stdout | default('')) | regex_search('^ii\\s+nvidia-driver-', multiline=True)) is not none
+      }}
+  changed_when: false
+  tags: [update-system, nvidia, drivers]
+
+- name: "GPU drivers | ensure ubuntu-drivers-common present"
+  ansible.builtin.apt:
+    name: ubuntu-drivers-common
+    state: present
+    update_cache: true
+  when: provision_ubuntu_2404_has_nvidia_gpu | default(false) | bool
+  tags: [update-system, nvidia, drivers]
+
+- name: "GPU drivers | install NVIDIA drivers via ubuntu-drivers"
+  ansible.builtin.command:
+    cmd: "ubuntu-drivers autoinstall"
+  register: provision_ubuntu_2404_nvidia_driver_install
+  changed_when: true
+  when:
+    - provision_ubuntu_2404_has_nvidia_gpu | default(false) | bool
+    - not provision_ubuntu_2404_nvidia_drivers_present | default(false) | bool
+  tags: [update-system, nvidia, drivers]
+
+- name: "GPU drivers | check reboot required after install"
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: provision_ubuntu_2404_nvidia_reboot_required
+  changed_when: false
+  when:
+    - provision_ubuntu_2404_nvidia_driver_install is defined
+    - provision_ubuntu_2404_nvidia_driver_install is changed
+  tags: [update-system, nvidia, drivers]
+
+- name: "GPU drivers | reboot if required after install"
+  ansible.builtin.reboot:
+    msg: "Rebooting to load NVIDIA drivers"
+    reboot_timeout: "{{ provision_ubuntu_2404_reboot_timeout | default(600) }}"
+    pre_reboot_delay: 0
+    post_reboot_delay: 30
+  when:
+    - provision_ubuntu_2404_nvidia_reboot_required is defined
+    - provision_ubuntu_2404_nvidia_reboot_required.stat is defined
+    - provision_ubuntu_2404_nvidia_reboot_required.stat.exists | default(false)
+  tags: [update-system, nvidia, drivers]
+
+- name: "GPU drivers | verify nvidia-smi"
+  ansible.builtin.command:
+    cmd: "nvidia-smi"
+  register: provision_ubuntu_2404_nvidia_smi_check
+  changed_when: false
+  failed_when: false
+  when:
+    - provision_ubuntu_2404_has_nvidia_gpu | default(false) | bool
+    - >-
+      (provision_ubuntu_2404_nvidia_drivers_present | default(false) | bool)
+      or
+      (
+        provision_ubuntu_2404_nvidia_driver_install is defined
+        and
+        provision_ubuntu_2404_nvidia_driver_install is changed
+      )
+  tags: [update-system, nvidia, drivers]
+
+- name: "GPU drivers | fail if NVIDIA drivers did not load"
+  ansible.builtin.fail:
+    msg: "NVIDIA drivers were installed but nvidia-smi failed. Check dmesg and /var/log/syslog."
+  when:
+    - provision_ubuntu_2404_has_nvidia_gpu | default(false) | bool
+    - provision_ubuntu_2404_nvidia_smi_check is defined
+    - (provision_ubuntu_2404_nvidia_smi_check | default({})).get('rc', 1) | int != 0
+  tags: [update-system, nvidia, drivers]
+
+- name: "GPU drivers | refresh NVIDIA driver presence fact"
+  ansible.builtin.set_fact:
+    provision_ubuntu_2404_nvidia_drivers_present: "{{ ((provision_ubuntu_2404_nvidia_smi_check | default({})).get('rc', 1) | int) == 0 }}"
+  changed_when: false
+  when:
+    - (provision_ubuntu_2404_nvidia_smi_check | default({})).get('rc') is not none
+  tags: [update-system, nvidia, drivers]
+
+- name: Install Intel driver tools for iGPU
+  ansible.builtin.apt:
+    name: intel-gpu-tools
+  when:
+    - provision_ubuntu_2404_has_intel_gpu | default(false) | bool
+  tags: update-system

@@ -1,0 +1,15 @@
+# {{ ansible_managed | comment }}
+#
+
+# Conservative SSH hardening without breaking Ubuntu defaults.
+
+PermitRootLogin no
+PasswordAuthentication no
+ChallengeResponseAuthentication no
+PubkeyAuthentication yes
+UsePAM yes
+{% if provision_ubuntu_2404_ssh_allow_users | length > 0 -%}
+AllowUsers {{ provision_ubuntu_2404_ssh_allow_users | join(' ') }}
+{%- endif %}
+
+# {{ ansible_managed | comment }}
