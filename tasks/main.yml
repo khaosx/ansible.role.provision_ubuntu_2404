@@ -307,4 +307,3 @@
   changed_when: true
   notify: Reboot system
   tags: ['updates-patches']
-
