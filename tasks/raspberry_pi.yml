@@ -36,7 +36,8 @@
   changed_when: false
   when:
     - provision_ubuntu_2404_rpi_radios_requested | bool
-    - provision_ubuntu_2404_rpi_dt_legacy_stat['stat']['exists']
+    - provision_ubuntu_2404_rpi_dt_legacy_stat.stat is defined
+    - provision_ubuntu_2404_rpi_dt_legacy_stat.stat.exists
 
 - name: Raspberry Pi Radios | Read CPU information fallback
   ansible.builtin.slurp:
