@@ -1,23 +1,86 @@
+# -----------------------------------------------------------------------------
+# Ansible
+# -----------------------------------------------------------------------------
 *.retry
 *.log
 *.swp
 *.swo
+
+# Ansible temporary/cache files
 .ansible/
 .ansible_cache/
 .fact_cache/
 .retry/
+.galaxy_install_info/
+
+# Exclude installed collections (keep requirements.yml)
 collections/
 !collections/requirements.yml
+
+# Exclude downloaded roles
+# Roles installed from requirements.yml go to .ansible/roles/ (already excluded above).
+# The ./roles/ directory contains only pre-graduation development roles and IS committed.
+# Do not uncomment the line below unless you intentionally change install behavior.
+# roles/*
+
+# -----------------------------------------------------------------------------
+# IDE / Editor (VS Code)
+# -----------------------------------------------------------------------------
 .vscode/
+# Uncomment the following lines if you want to share specific VS Code settings
+# !.vscode/settings.json
+# !.vscode/tasks.json
+# !.vscode/launch.json
+# !.vscode/extensions.json
+*.code-workspace
+.history/
+
+# JetBrains IDEs
 .idea/
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+**/*.pyc
 __pycache__/
+
+# -----------------------------------------------------------------------------
+# OS / System
+# -----------------------------------------------------------------------------
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+
+# -----------------------------------------------------------------------------
+# AWS Credentials
+# -----------------------------------------------------------------------------
+.aws/credentials
+
+# -----------------------------------------------------------------------------
+# Secrets & Credentials
+# -----------------------------------------------------------------------------
+# Prevent accidental commit of unencrypted secrets and vault password files.
+# NOTE: group_vars/all/vault.yml is NOT excluded here — it is an encrypted
+# committed artifact. The encryption is the protection, not the gitignore.
 *.vault
 .vault_pass
 .ansible_vault
 secrets.yml
-vault.yml
-*.pem
-*.key
+# vault.yml is intentionally NOT excluded — see note above
+
+# -----------------------------------------------------------------------------
+# SSH Keys
+# -----------------------------------------------------------------------------
+# Ensure no private keys are ever committed
 id_rsa
 id_ed25519
+*.pem
+*.key
+
+# -----------------------------------------------------------------------------
+# Misc
+# -----------------------------------------------------------------------------
+.git/

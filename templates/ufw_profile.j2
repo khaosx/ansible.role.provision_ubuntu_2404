@@ -1,3 +1,5 @@
+# {{ ansible_managed | comment }}
+#
 [{{ item.name }}]
 {% if item.title is defined %}title={{ item.title }}
 {% endif %}{% if item.description is defined %}description={{ item.description }}

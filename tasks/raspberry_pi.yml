@@ -1,54 +1,59 @@
 ---
-- name: "Raspberry Pi radios | determine if changes requested"
+- name: Raspberry Pi Radios | Determine whether changes are requested
   ansible.builtin.set_fact:
     provision_ubuntu_2404_rpi_radios_requested: "{{ (provision_ubuntu_2404_rpi_disable_wifi | bool) or (provision_ubuntu_2404_rpi_disable_bluetooth | bool) }}"
   changed_when: false
 
-- name: "Raspberry Pi radios | check model (device tree)"
+- name: Raspberry Pi Radios | Check model path in device tree
   ansible.builtin.stat:
     path: /sys/firmware/devicetree/base/model
   register: provision_ubuntu_2404_rpi_dt_model_stat
+  changed_when: false
   when: provision_ubuntu_2404_rpi_radios_requested | bool
 
-- name: "Raspberry Pi radios | read model (device tree)"
+- name: Raspberry Pi Radios | Read model from device tree
   ansible.builtin.slurp:
     path: /sys/firmware/devicetree/base/model
   register: provision_ubuntu_2404_rpi_dt_model
+  changed_when: false
   when:
     - provision_ubuntu_2404_rpi_radios_requested | bool
-    - provision_ubuntu_2404_rpi_dt_model_stat.stat.exists
+    - provision_ubuntu_2404_rpi_dt_model_stat['stat']['exists']
 
-- name: "Raspberry Pi radios | check model (legacy device tree)"
+- name: Raspberry Pi Radios | Check legacy model path
   ansible.builtin.stat:
     path: /proc/device-tree/model
   register: provision_ubuntu_2404_rpi_dt_legacy_stat
+  changed_when: false
   when:
     - provision_ubuntu_2404_rpi_radios_requested | bool
-    - not provision_ubuntu_2404_rpi_dt_model_stat.stat.exists
+    - not provision_ubuntu_2404_rpi_dt_model_stat['stat']['exists']
 
-- name: "Raspberry Pi radios | read model (legacy device tree)"
+- name: Raspberry Pi Radios | Read model from legacy device tree
   ansible.builtin.slurp:
     path: /proc/device-tree/model
   register: provision_ubuntu_2404_rpi_dt_legacy_model
+  changed_when: false
   when:
     - provision_ubuntu_2404_rpi_radios_requested | bool
-    - provision_ubuntu_2404_rpi_dt_legacy_stat.stat.exists
+    - provision_ubuntu_2404_rpi_dt_legacy_stat['stat']['exists']
 
-- name: "Raspberry Pi radios | read cpuinfo (fallback)"
+- name: Raspberry Pi Radios | Read CPU information fallback
   ansible.builtin.slurp:
     path: /proc/cpuinfo
   register: provision_ubuntu_2404_rpi_cpuinfo
+  changed_when: false
   when: provision_ubuntu_2404_rpi_radios_requested | bool
 
-- name: "Raspberry Pi radios | set model facts"
+- name: Raspberry Pi Radios | Set detected model facts
   ansible.builtin.set_fact:
     provision_ubuntu_2404_rpi_model: >-
       {{
-        (provision_ubuntu_2404_rpi_dt_model.content | b64decode | trim)
-        if (provision_ubuntu_2404_rpi_dt_model is defined and provision_ubuntu_2404_rpi_dt_model.content is defined)
-        else ((provision_ubuntu_2404_rpi_dt_legacy_model.content | b64decode | trim)
-          if (provision_ubuntu_2404_rpi_dt_legacy_model is defined and provision_ubuntu_2404_rpi_dt_legacy_model.content is defined)
-          else ((provision_ubuntu_2404_rpi_cpuinfo.content | b64decode).splitlines()
+        (provision_ubuntu_2404_rpi_dt_model['content'] | b64decode | trim)
+        if (provision_ubuntu_2404_rpi_dt_model is defined and provision_ubuntu_2404_rpi_dt_model['content'] is defined)
+        else ((provision_ubuntu_2404_rpi_dt_legacy_model['content'] | b64decode | trim)
+          if (provision_ubuntu_2404_rpi_dt_legacy_model is defined and provision_ubuntu_2404_rpi_dt_legacy_model['content'] is defined)
+          else ((provision_ubuntu_2404_rpi_cpuinfo['content'] | b64decode).splitlines()
             | select('match', '^Model\\s*:')
             | list
             | first
@@ -61,7 +66,7 @@
   changed_when: false
   when: provision_ubuntu_2404_rpi_radios_requested | bool
 
-- name: "Raspberry Pi radios | determine generation"
+- name: Raspberry Pi Radios | Determine Raspberry Pi generation
   ansible.builtin.set_fact:
     provision_ubuntu_2404_rpi_generation: >-
       {{
@@ -74,15 +79,15 @@
     - provision_ubuntu_2404_rpi_radios_requested | bool
     - provision_ubuntu_2404_rpi_is_pi | bool
 
-- name: "Raspberry Pi radios | fail on unknown generation"
+- name: Raspberry Pi Radios | Fail on unknown Raspberry Pi generation
   ansible.builtin.fail:
     msg: "Unable to determine Raspberry Pi generation from model '{{ provision_ubuntu_2404_rpi_model }}'."
   when:
     - provision_ubuntu_2404_rpi_radios_requested | bool
     - provision_ubuntu_2404_rpi_is_pi | bool
-    - provision_ubuntu_2404_rpi_generation == ""
+    - provision_ubuntu_2404_rpi_generation == ''
 
-- name: "Raspberry Pi radios | select overlays"
+- name: Raspberry Pi Radios | Select overlay lines
   ansible.builtin.set_fact:
     provision_ubuntu_2404_rpi_wifi_overlay: "{{ 'dtoverlay=disable-wifi' if provision_ubuntu_2404_rpi_generation == '4' else 'dtoverlay=disable-wifi-pi5' }}"
     provision_ubuntu_2404_rpi_bt_overlay: "{{ 'dtoverlay=disable-bt' if provision_ubuntu_2404_rpi_generation == '4' else 'dtoverlay=disable-bt-pi5' }}"
@@ -97,37 +102,40 @@
   when:
     - provision_ubuntu_2404_rpi_radios_requested | bool
     - provision_ubuntu_2404_rpi_is_pi | bool
-    - provision_ubuntu_2404_rpi_generation != ""
+    - provision_ubuntu_2404_rpi_generation != ''
 
-- name: "Raspberry Pi radios | check firmware config"
+- name: Raspberry Pi Radios | Check firmware config path
   ansible.builtin.stat:
     path: "{{ provision_ubuntu_2404_rpi_config_txt_path }}"
   register: provision_ubuntu_2404_rpi_config_stat
+  changed_when: false
   when:
     - provision_ubuntu_2404_rpi_radios_requested | bool
     - provision_ubuntu_2404_rpi_is_pi | bool
 
-- name: "Raspberry Pi radios | fail if config missing"
+- name: Raspberry Pi Radios | Fail when firmware config is missing
   ansible.builtin.fail:
     msg: "Raspberry Pi firmware config not found at {{ provision_ubuntu_2404_rpi_config_txt_path }}."
   when:
     - provision_ubuntu_2404_rpi_radios_requested | bool
     - provision_ubuntu_2404_rpi_is_pi | bool
-    - not provision_ubuntu_2404_rpi_config_stat.stat.exists
+    - not provision_ubuntu_2404_rpi_config_stat['stat']['exists']
 
-- name: "Raspberry Pi radios | backup firmware config"
+- name: Raspberry Pi Radios | Backup firmware config once
   ansible.builtin.copy:
     src: "{{ provision_ubuntu_2404_rpi_config_txt_path }}"
     dest: "{{ provision_ubuntu_2404_rpi_config_txt_path }}.bak"
     remote_src: true
+    owner: root
+    group: root
     force: false
     mode: "0644"
   when:
     - provision_ubuntu_2404_rpi_radios_requested | bool
     - provision_ubuntu_2404_rpi_is_pi | bool
-    - provision_ubuntu_2404_rpi_config_stat.stat.exists
+    - provision_ubuntu_2404_rpi_config_stat['stat']['exists']
 
-- name: "Raspberry Pi radios | ensure overlays present"
+- name: Raspberry Pi Radios | Ensure selected overlays are present
   ansible.builtin.lineinfile:
     path: "{{ provision_ubuntu_2404_rpi_config_txt_path }}"
     line: "{{ item }}"
@@ -137,13 +145,15 @@
     create: false
     backup: true
   loop: "{{ provision_ubuntu_2404_rpi_overlay_lines }}"
+  loop_control:
+    label: "{{ item }}"
   when:
     - provision_ubuntu_2404_rpi_radios_requested | bool
     - provision_ubuntu_2404_rpi_is_pi | bool
-    - provision_ubuntu_2404_rpi_config_stat.stat.exists
+    - provision_ubuntu_2404_rpi_config_stat['stat']['exists']
     - provision_ubuntu_2404_rpi_overlay_lines | length > 0
 
-- name: "Raspberry Pi radios | optionally disable bluetooth.service"
+- name: Raspberry Pi Radios | Optionally disable bluetooth service
   ansible.builtin.systemd:
     name: bluetooth.service
     enabled: false
@@ -155,7 +165,7 @@
     - provision_ubuntu_2404_rpi_disable_bluetooth | bool
     - provision_ubuntu_2404_rpi_disable_bt_service | bool
 
-- name: "Raspberry Pi radios | remove legacy blacklist"
+- name: Raspberry Pi Radios | Remove legacy blacklist file
   ansible.builtin.file:
     path: /etc/modprobe.d/raspi-blacklist.conf
     state: absent
@@ -163,13 +173,14 @@
     - provision_ubuntu_2404_rpi_radios_requested | bool
     - provision_ubuntu_2404_rpi_is_pi | bool
 
-- name: "Raspberry Pi radios | debug detection"
+- name: Raspberry Pi Radios | Emit debug detection output
   ansible.builtin.debug:
     msg:
       model: "{{ provision_ubuntu_2404_rpi_model | default('') }}"
       generation: "{{ provision_ubuntu_2404_rpi_generation | default('') }}"
       overlays: "{{ provision_ubuntu_2404_rpi_overlay_lines | default([]) }}"
       config_path: "{{ provision_ubuntu_2404_rpi_config_txt_path }}"
+    verbosity: 2
   when:
     - provision_ubuntu_2404_rpi_radios_requested | bool
     - provision_ubuntu_2404_rpi_is_pi | bool

@@ -2,11 +2,11 @@
 #
 
 [sshd]
-enabled = {{ provision_ubuntu_2404_fail2ban_jail.sshd.enabled | lower }}
+enabled = {{ provision_ubuntu_2404_fail2ban_jail['sshd']['enabled'] | lower }}
 backend = systemd
-port    = {{ provision_ubuntu_2404_fail2ban_jail.sshd.port }}
-filter  = {{ provision_ubuntu_2404_fail2ban_jail.sshd.filter }}
-logpath = {{ provision_ubuntu_2404_fail2ban_jail.sshd.logpath }}
-maxretry = {{ provision_ubuntu_2404_fail2ban_jail.sshd.maxretry }}
+port    = {{ provision_ubuntu_2404_fail2ban_jail['sshd']['port'] }}
+filter  = {{ provision_ubuntu_2404_fail2ban_jail['sshd']['filter'] }}
+logpath = {{ provision_ubuntu_2404_fail2ban_jail['sshd']['logpath'] }}
+maxretry = {{ provision_ubuntu_2404_fail2ban_jail['sshd']['maxretry'] }}
 
 # {{ ansible_managed | comment }}

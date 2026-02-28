@@ -1,0 +1,91 @@
+---
+- name: System Baseline | Set hostname
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname if '.' in inventory_hostname else inventory_hostname_short }}"
+
+- name: Hosts | Ensure localhost mapping
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.0\.1'
+    line: "127.0.0.1 localhost"
+
+- name: Hosts | Remove loopback host alias
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.1\.1\s+'
+    state: absent
+
+- name: Hosts | Map hostname to primary IPv4 address
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "{{ ansible_facts['default_ipv4']['address'] }} {{ inventory_hostname }} {{ inventory_hostname_short }}"
+    regexp: "^{{ ansible_facts['default_ipv4']['address'] | replace('.', '\\\\.') }}"
+    state: present
+  when:
+    - ansible_facts['default_ipv4'] is defined
+    - ansible_facts['default_ipv4']['address'] is defined
+
+- name: Facts | Refresh facts after hostname updates
+  ansible.builtin.setup:
+
+- name: Sudo | Configure passwordless sudo for sudo group
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: '^%sudo'
+    line: '%sudo ALL=(ALL) NOPASSWD: ALL'
+    validate: 'visudo -cf %s'
+  tags: configure-system
+
+- name: Motd | Disable selected MOTD scripts
+  ansible.builtin.file:
+    path: "/etc/update-motd.d/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - 10-help-text
+    - 50-motd-news
+  tags: configure-system
+
+- name: Packages | Run dist-upgrade
+  ansible.builtin.apt:
+    upgrade: dist
+    update_cache: true
+  tags:
+    - upgrade-distro
+    - never
+
+- name: Packages | Update and upgrade APT packages
+  ansible.builtin.apt:
+    upgrade: true
+    update_cache: true
+    cache_valid_time: 86400
+    autoremove: true
+  tags:
+    - updates-patches
+
+- name: Packages | Install additional applications
+  ansible.builtin.apt:
+    name: "{{ provision_ubuntu_2404_apps_to_install }}"
+    state: present
+    force_apt_get: true
+  tags:
+    - update-system
+
+- name: Virtualization | Install and enable QEMU guest tools
+  when: ansible_facts['system_vendor'] == 'QEMU'
+  notify: Provision_ubuntu_2404 | Reboot system
+  tags:
+    - update-system
+  block:
+    - name: Virtualization | Install QEMU guest tools package
+      ansible.builtin.apt:
+        name: qemu-guest-agent
+        state: present
+
+    - name: Virtualization | Enable and start QEMU guest agent
+      ansible.builtin.systemd:
+        name: qemu-guest-agent
+        enabled: true
+        state: started

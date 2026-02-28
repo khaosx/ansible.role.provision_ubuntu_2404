@@ -1,6 +1,4 @@
 ---
-# defaults/main.yml — provision_ubuntu_2404
-
 # General
 provision_ubuntu_2404_reboot_timeout: 600
 provision_ubuntu_2404_site_timezone: "UTC"

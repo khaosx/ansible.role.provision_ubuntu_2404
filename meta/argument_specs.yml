@@ -1,0 +1,150 @@
+---
+argument_specs:
+  main:
+    short_description: Baseline provisioning and hardening for Ubuntu hosts.
+    options:
+      provision_ubuntu_2404_reboot_timeout:
+        description: Reboot timeout in seconds for automated reboot tasks.
+        type: int
+        default: 600
+      provision_ubuntu_2404_site_timezone:
+        description: System timezone value to apply.
+        type: str
+        default: UTC
+      provision_ubuntu_2404_apps_to_install:
+        description: Additional base packages to ensure are present.
+        type: list
+        elements: str
+      provision_ubuntu_2404_unattended_mail:
+        description: Mail recipient for unattended-upgrades notifications.
+        type: str
+        default: ""
+      provision_ubuntu_2404_unattended_mail_only_on_error:
+        description: Send unattended-upgrades mail only on error.
+        type: bool
+        default: true
+      provision_ubuntu_2404_unattended_minimal_steps:
+        description: Enable unattended-upgrades minimal-steps mode.
+        type: bool
+        default: true
+      provision_ubuntu_2404_unattended_reboot:
+        description: Allow unattended-upgrades to reboot automatically.
+        type: bool
+        default: true
+      provision_ubuntu_2404_unattended_reboot_time:
+        description: Time for unattended-upgrades automatic reboot.
+        type: str
+        default: "04:00"
+      provision_ubuntu_2404_apt_periodic_update:
+        description: APT periodic update package list cadence.
+        type: str
+      provision_ubuntu_2404_apt_periodic_download:
+        description: APT periodic package download cadence.
+        type: str
+      provision_ubuntu_2404_apt_periodic_upgrade:
+        description: APT periodic unattended upgrade cadence.
+        type: str
+      provision_ubuntu_2404_apt_periodic_autoclean:
+        description: APT periodic autoclean cadence.
+        type: str
+      provision_ubuntu_2404_apt_periodic_random_sleep:
+        description: APT periodic random sleep window.
+        type: str
+      provision_ubuntu_2404_ssh_allow_users:
+        description: Optional SSH AllowUsers list.
+        type: list
+        elements: str
+      provision_ubuntu_2404_sysctl_params:
+        description: Sysctl key-value pairs for hardened kernel settings.
+        type: dict
+      provision_ubuntu_2404_fail2ban_jail:
+        description: Fail2ban jail configuration mapping.
+        type: dict
+      provision_ubuntu_2404_ufw_enable:
+        description: Whether UFW should be enabled and managed.
+        type: bool
+        default: true
+      provision_ubuntu_2404_ufw_reset:
+        description: Whether to reset UFW rules before applying baseline.
+        type: bool
+        default: false
+      provision_ubuntu_2404_ufw_ipv6:
+        description: Whether IPv6 support is enabled in UFW defaults.
+        type: bool
+        default: false
+      provision_ubuntu_2404_ufw_logging:
+        description: UFW logging level.
+        type: str
+        choices:
+          - "off"
+          - "on"
+          - low
+          - medium
+          - high
+          - full
+        default: "on"
+      provision_ubuntu_2404_ufw_default_incoming:
+        description: UFW default incoming policy.
+        type: str
+        choices:
+          - allow
+          - deny
+          - reject
+        default: deny
+      provision_ubuntu_2404_ufw_default_outgoing:
+        description: UFW default outgoing policy.
+        type: str
+        choices:
+          - allow
+          - deny
+          - reject
+        default: allow
+      provision_ubuntu_2404_ufw_manage_forward_policy:
+        description: Whether DEFAULT_FORWARD_POLICY should be managed.
+        type: bool
+        default: false
+      provision_ubuntu_2404_ufw_default_forward_policy:
+        description: Value for DEFAULT_FORWARD_POLICY when managed.
+        type: str
+        choices:
+          - ACCEPT
+          - DROP
+        default: DROP
+      provision_ubuntu_2404_chrony_ntp_servers:
+        description: Chrony upstream NTP server list.
+        type: list
+        elements: str
+      provision_ubuntu_2404_chrony_allow_network:
+        description: Networks allowed to query local chronyd.
+        type: list
+        elements: str
+      provision_ubuntu_2404_chrony_makestep_threshold:
+        description: Chrony makestep threshold.
+        type: float
+        default: 1.0
+      provision_ubuntu_2404_chrony_makestep_limit:
+        description: Chrony makestep limit.
+        type: int
+        default: 3
+      provision_ubuntu_2404_rpi_disable_radios:
+        description: Master toggle for disabling Raspberry Pi radios.
+        type: bool
+        default: true
+      provision_ubuntu_2404_rpi_disable_wifi:
+        description: Whether Raspberry Pi Wi-Fi radio should be disabled.
+        type: bool
+      provision_ubuntu_2404_rpi_disable_bluetooth:
+        description: Whether Raspberry Pi Bluetooth radio should be disabled.
+        type: bool
+      provision_ubuntu_2404_rpi_disable_bt_service:
+        description: Whether bluetooth.service should be disabled and masked.
+        type: bool
+        default: false
+      provision_ubuntu_2404_rpi_config_txt_path:
+        description: Path to Raspberry Pi firmware config.txt file.
+        type: str
+        default: /boot/firmware/config.txt
+      provision_ubuntu_2404_rpi_debug:
+        description: Enable Raspberry Pi detection debug output.
+        type: bool
+        default: false

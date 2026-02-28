@@ -1,0 +1,17 @@
+---
+- name: Set Vars | Ensure required facts are available
+  ansible.builtin.setup:
+    gather_subset: min
+  when: not ansible_facts.keys() | list |
+    intersect(__provision_ubuntu_2404_required_facts) == __provision_ubuntu_2404_required_facts
+
+- name: Set Vars | Load platform or version variables
+  ansible.builtin.include_vars: "{{ __provision_ubuntu_2404_vars_file }}"
+  loop:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_major_version'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}.yml"
+  vars:
+    __provision_ubuntu_2404_vars_file: "{{ role_path }}/vars/{{ item }}"
+  when: __provision_ubuntu_2404_vars_file is file

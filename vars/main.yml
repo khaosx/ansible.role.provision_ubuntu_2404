@@ -1,0 +1,7 @@
+---
+__provision_ubuntu_2404_required_facts:
+  - distribution
+  - distribution_version
+  - distribution_major_version
+  - os_family
+  - virtualization_type

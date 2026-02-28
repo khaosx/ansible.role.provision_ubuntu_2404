@@ -1,0 +1,81 @@
+---
+- name: Firewall | Configure UFW baseline
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
+    - ansible_facts['virtualization_type'] != 'lxc'
+  tags:
+    - configure-firewall
+  block:
+    - name: Firewall | Optionally reset UFW rules
+      community.general.ufw:
+        state: reset
+      when: provision_ubuntu_2404_ufw_reset | bool
+      notify: Provision_ubuntu_2404 | Reload UFW
+
+    - name: Firewall | Configure IPv6 setting
+      ansible.builtin.lineinfile:
+        path: /etc/default/ufw
+        regexp: '^IPV6='
+        line: "IPV6={{ (provision_ubuntu_2404_ufw_ipv6 | bool) | ternary('yes', 'no') }}"
+        create: true
+        mode: "0644"
+      notify: Provision_ubuntu_2404 | Reload UFW
+
+    - name: Firewall | Optionally configure default forward policy
+      ansible.builtin.lineinfile:
+        path: /etc/default/ufw
+        regexp: '^DEFAULT_FORWARD_POLICY='
+        line: >-
+          DEFAULT_FORWARD_POLICY="{{ provision_ubuntu_2404_ufw_default_forward_policy | upper }}"
+        create: true
+        mode: "0644"
+      when: provision_ubuntu_2404_ufw_manage_forward_policy | bool
+      notify: Provision_ubuntu_2404 | Reload UFW
+
+    - name: Firewall | Install UFW application profiles
+      ansible.builtin.import_role:
+        name: ufw_profiles
+      vars:
+        ufw_profiles_catalog: "{{ ufw_application_catalog | default([]) }}"
+        ufw_profiles_allow_applications: []
+      when: (ufw_application_catalog | default([])) | length > 0
+
+    - name: Firewall | Validate default policies
+      ansible.builtin.assert:
+        that:
+          - provision_ubuntu_2404_ufw_default_incoming in ['allow', 'deny', 'reject']
+          - provision_ubuntu_2404_ufw_default_outgoing in ['allow', 'deny', 'reject']
+        fail_msg: >-
+          UFW default policies must be one of allow, deny, reject.
+          incoming={{ provision_ubuntu_2404_ufw_default_incoming }},
+          outgoing={{ provision_ubuntu_2404_ufw_default_outgoing }}.
+      when: provision_ubuntu_2404_ufw_enable | bool
+
+    - name: Firewall | Allow OpenSSH application
+      community.general.ufw:
+        rule: allow
+        name: OpenSSH
+      when: provision_ubuntu_2404_ufw_enable | bool
+      notify: Provision_ubuntu_2404 | Reload UFW
+
+    - name: Firewall | Set default incoming policy
+      community.general.ufw:
+        state: enabled
+        direction: incoming
+        policy: "{{ provision_ubuntu_2404_ufw_default_incoming }}"
+      when: provision_ubuntu_2404_ufw_enable | bool
+      notify: Provision_ubuntu_2404 | Reload UFW
+
+    - name: Firewall | Set default outgoing policy
+      community.general.ufw:
+        state: enabled
+        direction: outgoing
+        policy: "{{ provision_ubuntu_2404_ufw_default_outgoing }}"
+      when: provision_ubuntu_2404_ufw_enable | bool
+      notify: Provision_ubuntu_2404 | Reload UFW
+
+    - name: Firewall | Set UFW logging level
+      community.general.ufw:
+        logging: "{{ provision_ubuntu_2404_ufw_logging }}"
+      when: provision_ubuntu_2404_ufw_enable | bool
+      notify: Provision_ubuntu_2404 | Reload UFW

@@ -1,41 +1,41 @@
 ---
-# handlers/main.yml
-
-- name: Restart sshd
-  ansible.builtin.service:
+- name: Provision_ubuntu_2404 | Restart sshd
+  ansible.builtin.systemd:
     name: ssh
     state: restarted
 
-# UFW reload: listen to both naming variants used across the repo
-- name: "Reload UFW"
+- name: Provision_ubuntu_2404 | Reload UFW
   community.general.ufw:
     state: reloaded
   changed_when: false
 
-- name: Update UFW app cache
+# UFW app cache refresh requires the ufw CLI; there is no dedicated module action for this subcommand.
+- name: Provision_ubuntu_2404 | Update UFW app cache
   ansible.builtin.command:
     cmd: ufw app update all
   changed_when: true
 
-- name: Restart fail2ban
-  ansible.builtin.service:
+- name: Provision_ubuntu_2404 | Restart fail2ban
+  ansible.builtin.systemd:
     name: fail2ban
     state: restarted
 
-- name: Reboot system
+- name: Provision_ubuntu_2404 | Reboot system
   ansible.builtin.reboot:
-    msg: "Reboot initiated by Ansible"
+    msg: Reboot initiated by Ansible
     connect_timeout: 5
     reboot_timeout: "{{ provision_ubuntu_2404_reboot_timeout | default(600) }}"
     pre_reboot_delay: 0
     post_reboot_delay: 30
     test_command: uptime
 
-- name: "Reload kernel params"
-  ansible.builtin.command: sysctl --system
+# sysctl --system is the canonical way to reload all sysctl drop-ins in one operation.
+- name: Provision_ubuntu_2404 | Reload kernel params
+  ansible.builtin.command:
+    cmd: sysctl --system
   changed_when: false
 
-- name: Restart chrony
+- name: Provision_ubuntu_2404 | Restart chrony
   ansible.builtin.systemd:
     name: chrony
     state: restarted

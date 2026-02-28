@@ -1,0 +1,16 @@
+---
+- name: Reboot | Check reboot-required marker
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: provision_ubuntu_2404_reboot_required
+  tags:
+    - updates-patches
+
+- name: Reboot | Signal reboot when required
+  ansible.builtin.set_fact:
+    provision_ubuntu_2404_reboot_needed: true
+  when: provision_ubuntu_2404_reboot_required['stat']['exists']
+  changed_when: true
+  notify: Provision_ubuntu_2404 | Reboot system
+  tags:
+    - updates-patches

@@ -1,0 +1,36 @@
+---
+- name: Time Sync | Set system timezone
+  community.general.timezone:
+    name: "{{ provision_ubuntu_2404_site_timezone }}"
+  notify: Provision_ubuntu_2404 | Restart chrony
+  tags:
+    - configure-ntp
+
+- name: Time Sync | Deploy chrony configuration
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: /etc/chrony/chrony.conf
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: Provision_ubuntu_2404 | Restart chrony
+  tags:
+    - configure-ntp
+
+- name: Time Sync | Disable systemd-timesyncd
+  ansible.builtin.systemd:
+    name: systemd-timesyncd
+    enabled: false
+    state: stopped
+  failed_when: false
+  tags:
+    - configure-ntp
+
+- name: Time Sync | Ensure chrony service is enabled and running
+  ansible.builtin.systemd:
+    name: chrony
+    enabled: true
+    state: started
+  tags:
+    - configure-ntp
