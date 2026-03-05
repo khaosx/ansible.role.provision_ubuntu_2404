@@ -11,6 +11,9 @@
 - name: Main | Manage GPU drivers
   ansible.builtin.import_tasks: gpu_drivers.yml
 
+- name: Main | Configure DevOps tooling host
+  ansible.builtin.import_tasks: devops.yml
+
 - name: Main | Configure time synchronization
   ansible.builtin.import_tasks: time_sync.yml
 

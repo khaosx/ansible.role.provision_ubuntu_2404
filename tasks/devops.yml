@@ -1,0 +1,52 @@
+---
+- name: Devops | Configure host-specific tooling
+  when: inventory_hostname == 'devops'
+  tags:
+    - provision_ubuntu_2404_devops
+  block:
+    - name: Devops | Ensure apt keyring directory exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Devops | Install OpenTofu repository signing key
+      ansible.builtin.get_url:
+        url: https://packages.opentofu.org/opentofu/tofu/gpgkey
+        dest: /etc/apt/keyrings/opentofu.asc
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Devops | Configure OpenTofu apt repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/opentofu.asc] https://packages.opentofu.org/opentofu/tofu/any/ any main"
+        filename: opentofu
+        state: present
+        update_cache: true
+
+    - name: Devops | Install latest DevOps and git tooling
+      ansible.builtin.apt:
+        name:
+          - ansible
+          - tofu
+          - git
+          - git-lfs
+          - git-flow
+        state: latest
+        update_cache: true
+
+    - name: Devops | Read passwd entry for connection user
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ ansible_user }}"
+
+    - name: Devops | Ensure projects directory exists in user home
+      ansible.builtin.file:
+        path: "{{ ansible_facts['getent_passwd'][ansible_user][4] }}/projects"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0755"
