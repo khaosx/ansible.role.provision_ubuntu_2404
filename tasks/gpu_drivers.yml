@@ -7,7 +7,7 @@
   changed_when: false
   failed_when: false
   tags:
-    - update-system
+    - provision_ubuntu_2404_update_system
 
 # lspci is used for vendor detection because it is the canonical PCI inventory source.
 - name: GPU Detection | Probe PCI devices with lspci
@@ -17,7 +17,7 @@
   changed_when: false
   failed_when: false
   tags:
-    - update-system
+    - provision_ubuntu_2404_update_system
     - nvidia
     - drivers
 
@@ -27,7 +27,7 @@
       {{ (provision_ubuntu_2404_nvidia_pci['stdout'] | default('') | regex_search('NVIDIA|10de', ignorecase=True)) is not none }}
   changed_when: false
   tags:
-    - update-system
+    - provision_ubuntu_2404_update_system
     - nvidia
     - drivers
 
@@ -39,7 +39,7 @@
       }}
   changed_when: false
   tags:
-    - update-system
+    - provision_ubuntu_2404_update_system
     - drivers
 
 - name: GPU Detection | Check for nvidia-smi binary
@@ -48,7 +48,7 @@
   register: provision_ubuntu_2404_nvidia_smi_stat
   changed_when: false
   tags:
-    - update-system
+    - provision_ubuntu_2404_update_system
     - nvidia
     - drivers
 
@@ -60,7 +60,7 @@
   changed_when: false
   failed_when: false
   tags:
-    - update-system
+    - provision_ubuntu_2404_update_system
     - nvidia
     - drivers
 
@@ -72,7 +72,7 @@
   changed_when: false
   failed_when: false
   tags:
-    - update-system
+    - provision_ubuntu_2404_update_system
     - nvidia
     - drivers
 
@@ -86,7 +86,7 @@
       }}
   changed_when: false
   tags:
-    - update-system
+    - provision_ubuntu_2404_update_system
     - nvidia
     - drivers
 
@@ -97,7 +97,7 @@
     update_cache: true
   when: provision_ubuntu_2404_has_nvidia_gpu | default(false) | bool
   tags:
-    - update-system
+    - provision_ubuntu_2404_update_system
     - nvidia
     - drivers
 
@@ -111,7 +111,7 @@
     - provision_ubuntu_2404_has_nvidia_gpu | default(false) | bool
     - not provision_ubuntu_2404_nvidia_drivers_present | default(false) | bool
   tags:
-    - update-system
+    - provision_ubuntu_2404_update_system
     - nvidia
     - drivers
 
@@ -124,7 +124,7 @@
     - provision_ubuntu_2404_nvidia_driver_install is defined
     - provision_ubuntu_2404_nvidia_driver_install is changed
   tags:
-    - update-system
+    - provision_ubuntu_2404_update_system
     - nvidia
     - drivers
 
@@ -139,7 +139,7 @@
     - provision_ubuntu_2404_nvidia_reboot_required['stat'] is defined
     - provision_ubuntu_2404_nvidia_reboot_required['stat']['exists'] | default(false)
   tags:
-    - update-system
+    - provision_ubuntu_2404_update_system
     - nvidia
     - drivers
 
@@ -161,7 +161,7 @@
         provision_ubuntu_2404_nvidia_driver_install is changed
       )
   tags:
-    - update-system
+    - provision_ubuntu_2404_update_system
     - nvidia
     - drivers
 
@@ -173,7 +173,7 @@
     - provision_ubuntu_2404_nvidia_smi_check is defined
     - (provision_ubuntu_2404_nvidia_smi_check | default({})).get('rc', 1) | int != 0
   tags:
-    - update-system
+    - provision_ubuntu_2404_update_system
     - nvidia
     - drivers
 
@@ -184,7 +184,7 @@
   when:
     - (provision_ubuntu_2404_nvidia_smi_check | default({})).get('rc') is not none
   tags:
-    - update-system
+    - provision_ubuntu_2404_update_system
     - nvidia
     - drivers
 
@@ -195,4 +195,4 @@
   when:
     - provision_ubuntu_2404_has_intel_gpu | default(false) | bool
   tags:
-    - update-system
+    - provision_ubuntu_2404_update_system

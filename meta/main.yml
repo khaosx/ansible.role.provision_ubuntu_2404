@@ -13,4 +13,5 @@ galaxy_info:
     - provisioning
     - hardening
     - ufw
-dependencies: []
+dependencies:
+  - role: ufw_profiles

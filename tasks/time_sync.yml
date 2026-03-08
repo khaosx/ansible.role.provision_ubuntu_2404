@@ -4,7 +4,7 @@
     name: "{{ provision_ubuntu_2404_site_timezone }}"
   notify: Provision_ubuntu_2404 | Restart chrony
   tags:
-    - configure-ntp
+    - provision_ubuntu_2404_configure_ntp
 
 - name: Time Sync | Deploy chrony configuration
   ansible.builtin.template:
@@ -16,7 +16,7 @@
     backup: true
   notify: Provision_ubuntu_2404 | Restart chrony
   tags:
-    - configure-ntp
+    - provision_ubuntu_2404_configure_ntp
 
 - name: Time Sync | Disable systemd-timesyncd
   ansible.builtin.systemd:
@@ -25,7 +25,7 @@
     state: stopped
   failed_when: false
   tags:
-    - configure-ntp
+    - provision_ubuntu_2404_configure_ntp
 
 - name: Time Sync | Ensure chrony service is enabled and running
   ansible.builtin.systemd:
@@ -33,4 +33,4 @@
     enabled: true
     state: started
   tags:
-    - configure-ntp
+    - provision_ubuntu_2404_configure_ntp

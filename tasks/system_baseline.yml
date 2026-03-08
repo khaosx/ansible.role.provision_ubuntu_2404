@@ -35,7 +35,7 @@
     regexp: '^%sudo'
     line: '%sudo ALL=(ALL) NOPASSWD: ALL'
     validate: 'visudo -cf %s'
-  tags: configure-system
+  tags: provision_ubuntu_2404_configure_system
 
 - name: Motd | Disable selected MOTD scripts
   ansible.builtin.file:
@@ -46,14 +46,14 @@
   loop:
     - 10-help-text
     - 50-motd-news
-  tags: configure-system
+  tags: provision_ubuntu_2404_configure_system
 
 - name: Packages | Run dist-upgrade
   ansible.builtin.apt:
     upgrade: dist
     update_cache: true
   tags:
-    - upgrade-distro
+    - provision_ubuntu_2404_upgrade_distro
     - never
 
 - name: Packages | Update and upgrade APT packages
@@ -63,7 +63,7 @@
     cache_valid_time: 86400
     autoremove: true
   tags:
-    - updates-patches
+    - provision_ubuntu_2404_updates_patches
 
 - name: Packages | Install additional applications
   ansible.builtin.apt:
@@ -71,13 +71,13 @@
     state: present
     force_apt_get: true
   tags:
-    - update-system
+    - provision_ubuntu_2404_update_system
 
 - name: Virtualization | Install and enable QEMU guest tools
   when: ansible_facts['system_vendor'] == 'QEMU'
   notify: Provision_ubuntu_2404 | Reboot system
   tags:
-    - update-system
+    - provision_ubuntu_2404_update_system
   block:
     - name: Virtualization | Install QEMU guest tools package
       ansible.builtin.apt:

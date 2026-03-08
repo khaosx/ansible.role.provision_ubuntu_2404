@@ -4,7 +4,7 @@
     path: /var/run/reboot-required
   register: provision_ubuntu_2404_reboot_required
   tags:
-    - updates-patches
+    - provision_ubuntu_2404_updates_patches
 
 - name: Reboot | Signal reboot when required
   ansible.builtin.set_fact:
@@ -13,4 +13,4 @@
   changed_when: true
   notify: Provision_ubuntu_2404 | Reboot system
   tags:
-    - updates-patches
+    - provision_ubuntu_2404_updates_patches

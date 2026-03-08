@@ -4,7 +4,7 @@
     - ansible_facts['distribution'] == 'Ubuntu'
     - ansible_facts['virtualization_type'] != 'lxc'
   tags:
-    - configure-firewall
+    - provision_ubuntu_2404_configure_firewall
   block:
     - name: Firewall | Optionally reset UFW rules
       community.general.ufw:
@@ -62,7 +62,27 @@
       community.general.ufw:
         state: enabled
         direction: incoming
-        policy: "{{ provision_ubuntu_2404_ufw_default_incoming }}"
+        policy: allow
+      when:
+        - provision_ubuntu_2404_ufw_enable | bool
+        - provision_ubuntu_2404_ufw_default_incoming == 'allow'
+      notify: Provision_ubuntu_2404 | Reload UFW
+
+    - name: Firewall | Set default incoming policy to deny
+      community.general.ufw:
+        state: enabled
+        direction: incoming
+        policy: deny
+      when:
+        - provision_ubuntu_2404_ufw_enable | bool
+        - provision_ubuntu_2404_ufw_default_incoming == 'deny'
+      notify: Provision_ubuntu_2404 | Reload UFW
+
+    - name: Firewall | Set default incoming policy to reject
+      community.general.ufw:
+        state: enabled
+        direction: incoming
+        policy: reject
       when: provision_ubuntu_2404_ufw_enable | bool
       notify: Provision_ubuntu_2404 | Reload UFW
 
@@ -70,7 +90,27 @@
       community.general.ufw:
         state: enabled
         direction: outgoing
-        policy: "{{ provision_ubuntu_2404_ufw_default_outgoing }}"
+        policy: allow
+      when:
+        - provision_ubuntu_2404_ufw_enable | bool
+        - provision_ubuntu_2404_ufw_default_outgoing == 'allow'
+      notify: Provision_ubuntu_2404 | Reload UFW
+
+    - name: Firewall | Set default outgoing policy to deny
+      community.general.ufw:
+        state: enabled
+        direction: outgoing
+        policy: deny
+      when:
+        - provision_ubuntu_2404_ufw_enable | bool
+        - provision_ubuntu_2404_ufw_default_outgoing == 'deny'
+      notify: Provision_ubuntu_2404 | Reload UFW
+
+    - name: Firewall | Set default outgoing policy to reject
+      community.general.ufw:
+        state: enabled
+        direction: outgoing
+        policy: reject
       when: provision_ubuntu_2404_ufw_enable | bool
       notify: Provision_ubuntu_2404 | Reload UFW
 

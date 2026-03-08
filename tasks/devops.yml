@@ -35,7 +35,7 @@
           - git
           - git-lfs
           - git-flow
-        state: latest
+        state: present
         update_cache: true
 
     - name: Devops | Read passwd entry for connection user
